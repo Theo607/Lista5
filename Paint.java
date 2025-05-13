@@ -1,16 +1,37 @@
+// AWT and Swing for GUI
+import javax.swing.*;
+import javax.swing.Timer;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
-import javax.swing.*;
+import java.awt.Shape;
+import java.awt.BasicStroke;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
+
+// Data structures
+import java.util.*;
+import java.util.List;
 import java.util.Vector;
 import java.util.function.Consumer;
+
+// File I/O
+import java.io.*;
+
+// Gson for JSON
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 enum Tool {
     NONE, CIRCLE, RECTANGLE, PATH
 }
 
 class PaintMenuBar extends JMenuBar {
-    public PaintMenuBar(Consumer<Tool> toolSelector, Consumer<Color> colorSelector, Consumer<Color> fillColorSelector, Consumer<Integer> strokeSelector, PaintCanvas canvas) {
+    public PaintMenuBar(Consumer<Tool> toolSelector, Consumer<Color> colorSelector, Consumer<Color> fillColorSelector,
+            Consumer<Integer> strokeSelector, PaintCanvas canvas) {
         JMenu Info = new JMenu("Info");
         JMenu File = new JMenu("File");
         JMenu Tools = new JMenu("Tools");
@@ -41,25 +62,62 @@ class PaintMenuBar extends JMenuBar {
         Tools.add(Rectangle);
         Tools.add(Path);
 
+        New.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to create a new canvas? Unsaved changes will be lost.", "New Canvas", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                canvas.getFigures().clear();
+                canvas.repaint();
+            }
+        });
+
+        Save.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileFilter(new FileNameExtensionFilter("JSON Files", "json"));
+
+            if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                // Add .json extension if not already present
+                if (!file.getName().toLowerCase().endsWith(".json")) {
+                    file = new File(file.getAbsolutePath() + ".json");
+                }
+                canvas.getFigures().saveToFile(file);
+            }
+        });
+
+        Open.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileFilter(new FileNameExtensionFilter("JSON Files", "json"));
+
+            if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                canvas.getFigures().loadFromFile(file);
+                canvas.repaint();
+            }
+        });
+
         // About button functionality
         About.addActionListener(e -> {
-            JOptionPane.showMessageDialog(null, "Paint Application\nVersion 1.0\nCreated by Mateusz Smuga\nSimple paint program to draw and manipulate shapes.", "About", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(null,
+                    "Paint Application\nVersion 1.0\nCreated by Mateusz Smuga\nSimple paint program to draw and manipulate shapes.",
+                    "About", JOptionPane.INFORMATION_MESSAGE);
         });
 
         // Help button functionality
         Help.addActionListener(e -> {
-            JOptionPane.showMessageDialog(null, "Instructions:\n- Use the toolbar to select drawing tools (Circle, Rectangle, Path)."+
-            "\n- Choose colors and stroke width from the settings.\n- Right-click to edit selected shapes.\n - Press E or R to rotate selected shape.", "Help", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(null,
+                    "Instructions:\n- Use the toolbar to select drawing tools (Circle, Rectangle, Path)." +
+                            "\n- Choose colors and stroke width from the settings.\n- Right-click to edit selected shapes.\n - Press E or R to rotate selected shape.",
+                    "Help", JOptionPane.INFORMATION_MESSAGE);
         });
 
         // Exit button functionality
         Exit.addActionListener(e -> {
-            int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to exit?", "Exit", JOptionPane.YES_NO_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to exit?", "Exit",
+                    JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
                 System.exit(0);
             }
         });
-
 
         JMenu Settings = new JMenu("Settings");
 
@@ -124,6 +182,10 @@ class PaintCanvas extends JPanel {
     private Color currentOutlineColor = Color.BLACK;
     private Color currentFillColor = Color.WHITE; // Added field for fill color
     private int currentStrokeWidth = 2;
+
+    public Figures getFigures() {
+        return figures;
+    }
 
     public void setFillShape(boolean fillShape) {
         this.fillShape = fillShape;
@@ -242,7 +304,7 @@ class PaintCanvas extends JPanel {
 
                 // Handle rotation key press
                 if (e.getKeyCode() == KeyEvent.VK_R) {
-                    rotateSelectedShapes(1);  // Rotate 15 degrees clockwise
+                    rotateSelectedShapes(1); // Rotate 15 degrees clockwise
                 } else if (e.getKeyCode() == KeyEvent.VK_E) {
                     rotateSelectedShapes(-1); // Rotate 15 degrees counterclockwise
                 }
@@ -276,7 +338,7 @@ class PaintCanvas extends JPanel {
 
                 // Create the AffineTransform for rotation
                 AffineTransform at = AffineTransform.getTranslateInstance(centerX, centerY);
-                at.rotate(Math.toRadians(angle));  // Rotate the shape by the given angle in degrees
+                at.rotate(Math.toRadians(angle)); // Rotate the shape by the given angle in degrees
                 at.translate(-centerX, -centerY);
 
                 // Apply the transformation to the shape
@@ -293,17 +355,19 @@ class PaintCanvas extends JPanel {
                 JButton fillBtn = new JButton("Select fill color");
                 JButton outlineBtn = new JButton("Select outline color");
 
-                final Color[] fillColor = {ds.fillColor != null ? ds.fillColor : Color.WHITE};
-                final Color[] outlineColor = {ds.outlinecolor};
+                final Color[] fillColor = { ds.fillColor != null ? ds.fillColor : Color.WHITE };
+                final Color[] outlineColor = { ds.outlinecolor };
 
                 fillBtn.addActionListener(e -> {
                     Color chosen = JColorChooser.showDialog(null, "Choose Fill Color", fillColor[0]);
-                    if (chosen != null) fillColor[0] = chosen;
+                    if (chosen != null)
+                        fillColor[0] = chosen;
                 });
 
                 outlineBtn.addActionListener(e -> {
                     Color chosen = JColorChooser.showDialog(null, "Choose Outline Color", outlineColor[0]);
-                    if (chosen != null) outlineColor[0] = chosen;
+                    if (chosen != null)
+                        outlineColor[0] = chosen;
                 });
 
                 JPanel panel = new JPanel(new GridLayout(0, 1));
@@ -354,7 +418,8 @@ class PaintCanvas extends JPanel {
                     int dx = p.x - firstClick.x;
                     int dy = p.y - firstClick.y;
                     int radius = (int) Math.sqrt(dx * dx + dy * dy);
-                    figures.AddCircle(firstClick.x, firstClick.y, radius, currentOutlineColor, currentFillColor, fillShape, currentStrokeWidth);
+                    figures.AddCircle(firstClick.x, firstClick.y, radius, currentOutlineColor, currentFillColor,
+                            fillShape, currentStrokeWidth);
                     shapes.lastElement().fillColor = currentFillColor; // Set fill color for new circle
                     firstClick = null;
                     currentTool = Tool.NONE;
@@ -368,7 +433,8 @@ class PaintCanvas extends JPanel {
                     int y = Math.min(firstClick.y, p.y);
                     int width = Math.abs(p.x - firstClick.x);
                     int height = Math.abs(p.y - firstClick.y);
-                    figures.AddRectangle(x, y, width, height, currentOutlineColor, currentFillColor, fillShape, currentStrokeWidth);
+                    figures.AddRectangle(x, y, width, height, currentOutlineColor, currentFillColor, fillShape,
+                            currentStrokeWidth);
                     shapes.lastElement().fillColor = currentFillColor; // Set fill color for new rectangle
                     firstClick = null;
                     currentTool = Tool.NONE;
@@ -387,7 +453,6 @@ class PaintCanvas extends JPanel {
         }
         repaint();
     }
-    
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -401,6 +466,25 @@ class PaintCanvas extends JPanel {
             g2d.setStroke(new BasicStroke(currentStrokeWidth));
             g2d.draw(currentPath);
         }
+    }
+}
+
+class SerializableShape {
+    String type;
+    double[] params;
+    String outlineColor;
+    String fillColor;
+    boolean filled;
+    int strokeWidth;
+
+    public SerializableShape(String type, double[] params, String outlineColor, String fillColor, boolean filled,
+            int strokeWidth) {
+        this.type = type;
+        this.params = params;
+        this.outlineColor = outlineColor;
+        this.fillColor = fillColor;
+        this.filled = filled;
+        this.strokeWidth = strokeWidth;
     }
 }
 
@@ -448,29 +532,82 @@ class DrawableShape {
     public void draw(Graphics2D g2d) {
         if (filled) {
             g2d.setColor(fillColor);
-            g2d.fill(shape);  // This ensures the path is filled if 'filled' is true
+            g2d.fill(shape);
         }
         g2d.setColor(outlinecolor);
         g2d.setStroke(new BasicStroke(strokeWidth));
-        g2d.draw(shape);  // Draw the outline of the shape
-    
+        g2d.draw(shape);
+
         if (selected) {
             g2d.setColor(Color.RED);
-            g2d.draw(shape.getBounds());  // Drawing the selection outline
+            g2d.draw(shape.getBounds());
         }
     }
-    
+
+    public SerializableShape toSerializableShape() {
+        String type;
+        double[] params;
+
+        if (shape instanceof Ellipse2D.Double) {
+            Ellipse2D.Double ellipse = (Ellipse2D.Double) shape;
+            type = "CIRCLE";
+            double centerX = ellipse.getCenterX();
+            double centerY = ellipse.getCenterY();
+            double radius = ellipse.width / 2;
+            params = new double[] { centerX, centerY, radius };
+        } else if (shape instanceof Rectangle2D.Double) {
+            Rectangle2D.Double rect = (Rectangle2D.Double) shape;
+            type = "RECTANGLE";
+            params = new double[] { rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight() };
+        } else if (shape instanceof Path2D.Double) {
+            Path2D.Double path = (Path2D.Double) shape;
+
+            // Ensure the path is closed before serializing
+            path.closePath();
+
+            PathIterator iterator = path.getPathIterator(null);
+            List<Double> coordsList = new ArrayList<>();
+            while (!iterator.isDone()) {
+                double[] coords = new double[6];
+                int typeSeg = iterator.currentSegment(coords);
+                if (typeSeg != PathIterator.SEG_CLOSE) {
+                    coordsList.add(coords[0]);
+                    coordsList.add(coords[1]);
+                }
+                iterator.next();
+            }
+            type = "PATH";
+            params = coordsList.stream().mapToDouble(Double::doubleValue).toArray();
+        } else {
+            type = "UNKNOWN";
+            params = new double[] {};
+        }
+
+        return new SerializableShape(
+                type,
+                params,
+                colorToHex(outlinecolor),
+                colorToHex(fillColor),
+                filled,
+                strokeWidth);
+    }
+
+    private String colorToHex(Color color) {
+        return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
+    }
 }
 
 class Figures {
     private Vector<DrawableShape> shapes = new Vector<>();
 
-    public void AddCircle(int x, int y, int radius, Color colorOutline, Color colorFill, boolean filled, int strokeWidth) {
+    public void AddCircle(int x, int y, int radius, Color colorOutline, Color colorFill, boolean filled,
+            int strokeWidth) {
         Shape shape = new Ellipse2D.Double(x - radius, y - radius, radius * 2, radius * 2);
         shapes.add(new DrawableShape(shape, colorOutline, colorFill, filled, strokeWidth));
     }
 
-    public void AddRectangle(int x, int y, int width, int height, Color colorOutline, Color colorFill, boolean filled, int strokeWidth) {
+    public void AddRectangle(int x, int y, int width, int height, Color colorOutline, Color colorFill, boolean filled,
+            int strokeWidth) {
         Shape shape = new Rectangle2D.Double(x, y, width, height);
         shapes.add(new DrawableShape(shape, colorOutline, colorFill, filled, strokeWidth));
     }
@@ -492,6 +629,117 @@ class Figures {
             shape.setSelected(false);
         }
     }
+
+    public void clear() {
+        shapes.clear();
+    }
+
+    public void saveToJson(File file) {
+        List<SerializableShape> serializableShapes = new ArrayList<>();
+        for (DrawableShape ds : shapes) {
+            serializableShapes.add(ds.toSerializableShape());
+        }
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        try (FileWriter writer = new FileWriter(file)) {
+            gson.toJson(serializableShapes, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadFromJson(File file) {
+        Gson gson = new Gson();
+        try (FileReader reader = new FileReader(file)) {
+            SerializableShape[] serializableShapes = gson.fromJson(reader, SerializableShape[].class);
+            shapes.clear();
+            for (SerializableShape ss : serializableShapes) {
+                DrawableShape ds = fromSerializableShape(ss);
+                if (ds != null) {
+                    shapes.add(ds);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void saveToFile(File file) {
+        try (Writer writer = new FileWriter(file)) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            List<SerializableShape> serializableShapes = new ArrayList<>();
+            for (DrawableShape ds : shapes) {
+                serializableShapes.add(ds.toSerializableShape());
+            }
+            gson.toJson(serializableShapes, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error saving file: " + e.getMessage(), "Save Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public void loadFromFile(File file) {
+        try (Reader reader = new FileReader(file)) {
+            Gson gson = new Gson();
+            SerializableShape[] serializableShapes = gson.fromJson(reader, SerializableShape[].class);
+            shapes.clear();
+            for (SerializableShape ss : serializableShapes) {
+                DrawableShape ds = fromSerializableShape(ss);
+                if (ds != null) {
+                    shapes.add(ds);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error loading file: " + e.getMessage(), "Load Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private DrawableShape fromSerializableShape(SerializableShape ss) {
+        Color outlineColor = Color.decode(ss.outlineColor);
+        Color fillColor = Color.decode(ss.fillColor);
+        boolean filled = ss.filled;
+        int strokeWidth = ss.strokeWidth;
+
+        switch (ss.type) {
+            case "CIRCLE":
+                if (ss.params.length == 3) {
+                    int x = (int) ss.params[0];
+                    int y = (int) ss.params[1];
+                    int radius = (int) ss.params[2];
+                    Shape shape = new Ellipse2D.Double(x - radius, y - radius, radius * 2, radius * 2);
+                    return new DrawableShape(shape, outlineColor, fillColor, filled, strokeWidth);
+                }
+                break;
+            case "RECTANGLE":
+                if (ss.params.length == 4) {
+                    int x = (int) ss.params[0];
+                    int y = (int) ss.params[1];
+                    int width = (int) ss.params[2];
+                    int height = (int) ss.params[3];
+                    Shape shape = new Rectangle2D.Double(x, y, width, height);
+                    return new DrawableShape(shape, outlineColor, fillColor, filled, strokeWidth);
+                }
+                break;
+            case "PATH":
+                if (ss.params.length >= 4) {
+                    Path2D.Double path = new Path2D.Double();
+                    path.moveTo(ss.params[0], ss.params[1]);
+                    for (int i = 2; i < ss.params.length; i += 2) {
+                        path.lineTo(ss.params[i], ss.params[i + 1]);
+                    }
+                    // Close the path explicitly
+                    path.closePath();
+                    return new DrawableShape(path, outlineColor, fillColor, filled, strokeWidth);
+                }
+                break;
+            default:
+                break;
+        }
+        return null;
+    }
 }
 
 class Paint {
@@ -503,7 +751,8 @@ class Paint {
         Figures figures = new Figures();
         PaintCanvas canvas = new PaintCanvas(figures);
 
-        PaintMenuBar menuBar = new PaintMenuBar(canvas::setCurrentTool, canvas::setCurrentColor, canvas::setCurrentFillColor, canvas::setCurrentStrokeWidth, canvas);
+        PaintMenuBar menuBar = new PaintMenuBar(canvas::setCurrentTool, canvas::setCurrentColor,
+                canvas::setCurrentFillColor, canvas::setCurrentStrokeWidth, canvas);
         frame.setJMenuBar(menuBar);
         frame.add(canvas);
         new Timer(16, e -> canvas.repaint()).start();
