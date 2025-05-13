@@ -16,12 +16,12 @@ echo Compiling Java files...
 javac -cp "%GSON_LIB%" -d "%OUT_DIR%" "%APP_DIR%\Paint.java" %SRC_DIR%\*.java
 
 if errorlevel 1 (
-    echo ❌ Compilation failed.
+    echo Compilation failed.
     exit /b 1
 )
 
 REM === RUN ===
-echo ✅ Compilation successful. Running app.Paint...
+echo Compilation successful. Running app.Paint...
 java -cp "%OUT_DIR%;%GSON_LIB%" app.Paint
 
 REM === JAVADOC ===
@@ -32,9 +32,9 @@ if /i "%generate_docs%"=="y" (
     javadoc -cp "%GSON_LIB%" -d "%DOCS_DIR%" "%APP_DIR%\Paint.java" %SRC_DIR%\*.java
 
     if errorlevel 1 (
-        echo ❌ Javadoc generation failed.
+        echo Javadoc generation failed.
     ) else (
-        echo ✅ Javadoc generated in .\%DOCS_DIR%\
+        echo Javadoc generated in .\%DOCS_DIR%\
     )
 ) else (
     echo 📄 Skipping Javadoc generation.
