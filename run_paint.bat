@@ -1,13 +1,43 @@
 @echo off
+setlocal
 
-:: Set the path to the Gson library (adjust if necessary)
-set GSON_LIB_PATH=.\lib\gson-2.10.1.jar
+REM === CONFIGURATION ===
+set GSON_LIB=lib\gson-2.10.1.jar
+set SRC_DIR=src
+set APP_DIR=app
+set OUT_DIR=out
+set DOCS_DIR=docs
 
-:: Set the classpath to include the Gson library and the current directory
-set CLASSPATH=%GSON_LIB_PATH%;.
+REM Create output directory if it doesn't exist
+if not exist %OUT_DIR% mkdir %OUT_DIR%
 
-:: Compile the Java file (if not already compiled)
-javac -cp %CLASSPATH% Paint.java
+REM === COMPILE ===
+echo Compiling Java files...
+javac -cp "%GSON_LIB%" -d "%OUT_DIR%" "%APP_DIR%\Paint.java" %SRC_DIR%\*.java
 
-:: Run the Paint class
-java -cp %CLASSPATH% Paint
+if errorlevel 1 (
+    echo ❌ Compilation failed.
+    exit /b 1
+)
+
+REM === RUN ===
+echo ✅ Compilation successful. Running app.Paint...
+java -cp "%OUT_DIR%;%GSON_LIB%" app.Paint
+
+REM === JAVADOC ===
+set /p generate_docs=Generate Javadoc? (y/n): 
+if /i "%generate_docs%"=="y" (
+    if not exist %DOCS_DIR% mkdir %DOCS_DIR%
+    echo 📄 Generating Javadoc...
+    javadoc -cp "%GSON_LIB%" -d "%DOCS_DIR%" "%APP_DIR%\Paint.java" %SRC_DIR%\*.java
+
+    if errorlevel 1 (
+        echo ❌ Javadoc generation failed.
+    ) else (
+        echo ✅ Javadoc generated in .\%DOCS_DIR%\
+    )
+) else (
+    echo 📄 Skipping Javadoc generation.
+)
+
+endlocal
