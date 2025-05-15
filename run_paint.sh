@@ -6,7 +6,6 @@ SRC_DIR="src"
 APP_DIR="app"
 OUT_DIR="out"
 DOCS_DIR="docs"
-DOXYGEN_DIR="doxygen_docs"
 
 # Ensure output directories exist
 mkdir -p "$OUT_DIR"
@@ -37,25 +36,4 @@ if [[ "$generate_javadoc" =~ ^[Yy]$ ]]; then
     fi
 else
     echo "Skipping Javadoc generation."
-fi
-
-# === DOXYGEN PROMPT ===
-read -p "Generate Doxygen docs? (y/n): " generate_doxygen
-if [[ "$generate_doxygen" =~ ^[Yy]$ ]]; then
-    if ! command -v doxygen &> /dev/null; then
-        echo "Doxygen is not installed. Skipping."
-    else
-        mkdir -p "$DOXYGEN_DIR"
-        if [ ! -f Doxyfile ]; then
-            echo "Generating default Doxyfile..."
-            doxygen -g
-        fi
-        echo "Updating Doxyfile output directory..."
-        sed -i.bak "s|^OUTPUT_DIRECTORY.*|OUTPUT_DIRECTORY = $DOXYGEN_DIR|" Doxyfile
-        echo "Running Doxygen..."
-        doxygen Doxyfile
-        echo "Doxygen docs generated in $DOXYGEN_DIR/"
-    fi
-else
-    echo "Skipping Doxygen generation."
 fi
